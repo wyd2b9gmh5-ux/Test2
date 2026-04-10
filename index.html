@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>리스크 관리 대시보드 v7</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;background:#f4f6f9;color:#1a1a1a}
+.db{padding:1.5rem;max-width:1440px;margin:0 auto}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:2px solid #1a3a6b}
+.header h1{font-size:22px;font-weight:500;color:#1a3a6b}
+.header p{font-size:12px;color:#6b7280;margin-top:3px}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.badge{font-size:11px;padding:4px 12px;border-radius:4px;background:#e8f0fb;color:#1a3a6b;font-weight:500}
+.hdr-btn{font-size:12px;padding:7px 16px;border-radius:20px;border:0.5px solid #1a3a6b;background:transparent;color:#1a3a6b;cursor:pointer}
+.hdr-btn:hover{background:#eef3fb}
+.hdr-btn.pdf{border-color:#b8860b;color:#b8860b}
+.hdr-btn.pdf:hover{background:#fef9e7}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
+.kpi-card{background:#fff;border:0.5px solid #e5e7eb;border-radius:10px;padding:1rem 1.25rem;border-top:3px solid #1a3a6b}
+.kpi-card.warn{border-top-color:#c0392b}.kpi-card.ok{border-top-color:#1a6b3a}.kpi-card.mid{border-top-color:#b8860b}.kpi-card.neu{border-top-color:#5b4a8a}
+.kpi-label{font-size:11px;color:#6b7280;margin-bottom:6px}
+.kpi-val{font-size:26px;font-weight:500;color:#111827}
+.kpi-sub{font-size:11px;margin-top:4px}
+.kpi-sub.pos{color:#1a6b3a}.kpi-sub.neg{color:#c0392b}.kpi-sub.neu{color:#6b7280}
+.kpi-bench{font-size:11px;color:#6b7280;margin-top:2px}
+.row-3-2{display:grid;grid-template-columns:1.3fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
+.section{background:#fff;border:0.5px solid #e5e7eb;border-radius:10px;padding:1.25rem}
+.section-title{font-size:13px;font-weight:500;color:#1a3a6b;margin-bottom:1rem;padding-bottom:0.6rem;border-bottom:0.5px solid #e5e7eb}
+.section-sub{font-size:11px;font-weight:400;color:#6b7280;display:block;margin-top:2px}
+.tab-row{display:flex;gap:8px;margin-bottom:1rem}
+.tab{font-size:12px;padding:5px 16px;border-radius:20px;border:0.5px solid #d1d5db;background:transparent;color:#6b7280;cursor:pointer;white-space:nowrap}
+.tab.active{background:#1a3a6b;color:#fff;border-color:#1a3a6b}
+.tab:hover:not(.active){background:#f3f4f6}
+.peer-table{width:100%;border-collapse:collapse;font-size:12px}
+.peer-table th{text-align:left;color:#6b7280;font-weight:500;padding:7px 10px;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+.peer-table td{padding:8px 10px;border-bottom:0.5px solid #e5e7eb;color:#111827}
+.peer-table tr:last-child td{border-bottom:none}
+.peer-table tr.me td{background:#eef3fb;font-weight:500}
+.bar-wrap{display:flex;align-items:center;gap:8px}
+.bar-bg{flex:1;height:7px;background:#f3f4f6;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px}
+.chip{display:inline-block;font-size:10px;padding:2px 7px;border-radius:3px;margin-left:4px}
+.chip.good{background:#e6f4ea;color:#1a6b3a}.chip.bad{background:#fdecea;color:#c0392b}.chip.mid{background:#fef9e7;color:#b8860b}
+.legend-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:11px;color:#6b7280}
+.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+.ai-btn{font-size:12px;padding:6px 14px;border-radius:20px;border:0.5px solid #1a3a6b;background:transparent;color:#1a3a6b;cursor:pointer}
+.ai-btn:hover{background:#eef3fb}
+/* 설정 패널 */
+.overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.35)}
+.overlay.open{display:flex;justify-content:flex-end}
+.sheet{background:#fff;width:500px;height:100%;overflow-y:auto;display:flex;flex-direction:column;box-shadow:-4px 0 24px rgba(0,0,0,0.12)}
+.sheet-header{background:#1a3a6b;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.sheet-title{font-size:15px;font-weight:500;color:#fff}
+.sheet-close{font-size:12px;padding:5px 14px;border-radius:20px;border:0.5px solid rgba(255,255,255,0.4);background:transparent;color:#fff;cursor:pointer}
+.sheet-body{padding:1.25rem;flex:1}
+.upload-box{border:1px dashed rgba(26,58,107,0.3);border-radius:8px;padding:1rem;text-align:center;margin-bottom:10px;cursor:pointer;background:#f9fafb}
+.upload-box:hover{border-color:#1a3a6b}
+.upload-box input{display:none}
+.upload-status{font-size:11px;margin-top:5px;color:#1a6b3a;font-weight:500}
+.upload-status.err{color:#c0392b}
+.tpl-btn{width:100%;padding:9px;background:transparent;color:#1a3a6b;border:0.5px solid rgba(26,58,107,0.35);border-radius:8px;font-size:12px;cursor:pointer;margin-bottom:1rem}
+.tpl-btn:hover{background:#eef3fb}
+.or-divider{display:flex;align-items:center;gap:8px;margin:0.75rem 0;font-size:11px;color:#6b7280}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:0.5px;background:#e5e7eb}
+.input-card{background:#f9fafb;border-radius:10px;overflow:hidden;margin-bottom:12px;border:0.5px solid #e5e7eb}
+.ic-title{font-size:11px;font-weight:500;color:#fff;letter-spacing:0.05em;text-transform:uppercase;padding:9px 14px;background:#1a3a6b}
+.sub-label{font-size:10px;font-weight:500;color:#1a3a6b;letter-spacing:0.04em;text-transform:uppercase;padding:8px 14px 6px;background:rgba(26,58,107,0.06);border-bottom:0.5px solid #e5e7eb}
+.f-table{width:100%;border-collapse:collapse}
+.f-table td{padding:8px 14px;border-bottom:0.5px solid #e5e7eb;vertical-align:middle}
+.f-table tr:last-child td{border-bottom:none}
+.f-table td.lbl{font-size:12px;color:#6b7280;width:50%}
+.f-table td:last-child{text-align:right}
+.f-table input{font-size:13px;padding:5px 8px;border:0.5px solid #d1d5db;border-radius:6px;background:#fff;color:#111827;width:100%;text-align:right}
+.f-table input:focus{outline:none;border-color:#1a3a6b}
+.f-name{width:100%;font-size:13px;padding:9px 14px;border:none;border-bottom:0.5px solid #e5e7eb;background:#fff;color:#111827}
+.f-name:focus{outline:none;background:#f0f4fb}
+.q-table{width:100%;border-collapse:collapse;font-size:12px}
+.q-table th{padding:6px 8px;text-align:center;font-weight:500;color:#6b7280;background:rgba(26,58,107,0.04);border-bottom:0.5px solid #e5e7eb;font-size:11px}
+.q-table th.lbl{text-align:left;padding-left:14px;width:36%}
+.q-table td{padding:6px 8px;border-bottom:0.5px solid #e5e7eb;text-align:center}
+.q-table td.lbl{text-align:left;padding-left:14px;font-size:11px;color:#6b7280}
+.q-table tr:last-child td{border-bottom:none}
+.q-table input{font-size:12px;padding:4px 6px;border:0.5px solid #d1d5db;border-radius:5px;background:#fff;color:#111827;width:100%;text-align:center}
+.q-table input:focus{outline:none;border-color:#1a3a6b}
+.yr-label{font-size:12px;font-weight:500;color:#1a3a6b;padding:8px 14px;background:rgba(26,58,107,0.05);border-bottom:0.5px solid #e5e7eb}
+.peer-card{background:#f9fafb;border-radius:10px;overflow:hidden;margin-bottom:10px;border:0.5px solid #e5e7eb;border-left:3px solid #1a3a6b}
+.peer-card-title{font-size:11px;font-weight:500;color:#1a3a6b;letter-spacing:0.05em;text-transform:uppercase;padding:8px 14px;background:rgba(26,58,107,0.06);border-bottom:0.5px solid #e5e7eb}
+.apply-btn{width:100%;padding:13px;background:#1a3a6b;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;margin-top:6px}
+.apply-btn:hover{background:#152f58}
+.peer-grp-label{font-size:11px;font-weight:500;color:#1a3a6b;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:10px}
+/* AI 요약 */
+.ai-line{margin-bottom:0.75rem;padding-left:0.75rem;border-left:2px solid #1a3a6b;color:#111827;font-size:13px;line-height:2}
+/* PDF 인쇄 */
+@media print{
+  .hdr-btn,.overlay{display:none!important}
+  body{background:#fff}
+  .section,.kpi-card{box-shadow:none;border:0.5px solid #ccc}
+  .db{padding:1rem}
+}
+</style>
+</head>
+<body>
+<div class="db">
+  <div class="header">
+    <div>
+      <h1 id="dash-title">리스크 관리 대시보드</h1>
+      <p id="dash-sub">기준일: — · 국내 주요 은행 Peer Group</p>
+    </div>
+    <div class="hdr-right">
+      <span class="badge">분기보고 기준</span>
+      <button class="hdr-btn pdf" onclick="window.print()">📄 PDF 저장</button>
+      <button class="hdr-btn" onclick="openSheet()">⚙ 설정</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card neu"><div class="kpi-label">대출금액</div><div class="kpi-val" id="kpi-loan">320조</div><div class="kpi-sub neu" id="kpi-loan-sub">—</div><div class="kpi-bench">단위: 조원</div></div>
+    <div class="kpi-card neu"><div class="kpi-label">당기순이익</div><div class="kpi-val" id="kpi-ni">15,200억</div><div class="kpi-sub neu" id="kpi-ni-sub">—</div><div class="kpi-bench">단위: 억원</div></div>
+    <div class="kpi-card warn"><div class="kpi-label">연체율</div><div class="kpi-val" id="kpi-del">0.31%</div><div class="kpi-sub neu" id="kpi-del-sub">—</div><div class="kpi-bench" id="kpi-del-bench">Peer 평균: —</div></div>
+    <div class="kpi-card warn"><div class="kpi-label">고정이하여신비율</div><div class="kpi-val" id="kpi-npl">0.82%</div><div class="kpi-sub neu" id="kpi-npl-sub">—</div><div class="kpi-bench" id="kpi-npl-bench">Peer 평균: —</div></div>
+    <div class="kpi-card ok"><div class="kpi-label">BIS 자기자본비율</div><div class="kpi-val" id="kpi-bis">16.2%</div><div class="kpi-sub neu" id="kpi-bis-sub">—</div><div class="kpi-bench">기준: 8% 이상</div></div>
+    <div class="kpi-card ok"><div class="kpi-label">유동성비율</div><div class="kpi-val" id="kpi-liq">138.5%</div><div class="kpi-sub neu" id="kpi-liq-sub">—</div><div class="kpi-bench">기준: 100% 이상</div></div>
+    <div class="kpi-card mid"><div class="kpi-label">총자산순이익률 (ROA)</div><div class="kpi-val" id="kpi-roa">0.54%</div><div class="kpi-sub neu" id="kpi-roa-sub">—</div><div class="kpi-bench" id="kpi-roa-bench">Peer 평균: —</div></div>
+    <div class="kpi-card mid"><div class="kpi-label">자기자본이익률 (ROE)</div><div class="kpi-val" id="kpi-roe">7.8%</div><div class="kpi-sub neu" id="kpi-roe-sub">—</div><div class="kpi-bench" id="kpi-roe-bench">Peer 평균: —</div></div>
+  </div>
+
+  <div class="row-3-2">
+    <div class="section">
+      <div class="section-title">Peer Group 비교 분석</div>
+      <div class="tab-row" id="peer-tabs">
+        <button class="tab active" onclick="showTab('del')">연체율</button>
+        <button class="tab" onclick="showTab('npl')">고정이하여신</button>
+        <button class="tab" onclick="showTab('bis')">BIS비율</button>
+        <button class="tab" onclick="showTab('liq')">유동성비율</button>
